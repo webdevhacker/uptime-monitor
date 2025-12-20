@@ -4,7 +4,7 @@ const Site = require('../models/Site'); // Import Model
 const monitorService = require('../monitorService');
 const jwt = require('jsonwebtoken');
 const auth = require('../routes/auth');
-
+const { checkAllSites, checkSite } = require('../monitorService');
 // Middleware
 const authenticate = (req, res, next) => {
     const token = req.headers['authorization'];
@@ -59,6 +59,26 @@ router.delete('/:id', authenticate, async (req, res) => {
         res.json({ message: 'Site deleted' });
     } catch (err) {
         res.status(500).json({ message: 'Error deleting site' });
+    }
+});
+
+router.get('/crontask', async (req, res) => {
+    try {
+        const secret = req.headers['x-cron-secret'];
+
+        if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+            return res.status(403).json({ message: 'Unauthorized: Invalid Secret' });
+        }
+
+        console.log('🔄 API Route Triggered: Starting Check Loop...');
+
+        checkAllSites();
+
+        res.status(200).json({ message: 'Monitoring job started successfully' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 
