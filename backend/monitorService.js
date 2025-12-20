@@ -35,31 +35,27 @@ const sendSSLAlert = async (site, daysLeft) => {
 
 // --- UPDATED: Send Uptime/Downtime Alerts (Plain Text) ---
 const sendStatusAlert = async (site, status) => {
+    const dashboardLink = "http://localhost:5173";
     if (!process.env.EMAIL_USER) return;
-
-    const isDown = status === 'DOWN';
-    const icon = isDown ? '🚨' : '✅';
-    const dashboardLink = "https://uptimegaurd.isharankumar.com/"; // Replace with your Vercel URL in production
-
-    // Plain Text Content
-    const textContent = `
-Status change detected for your monitor.
-
---------------------------------------------------
-URL:      ${site.url}
-Status:   ${status}
-Time:     ${new Date().toLocaleString()}
---------------------------------------------------
-
-View Dashboard: ${dashboardLink}
-    `.trim();
-
     try {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: process.env.EMAIL_USER,
-            subject: `${icon} ALERT: ${site.url} is ${status}`,
-            text: textContent // <--- Sending Plain Text
+            subject: `ALERT: ${site.url} is ${status}`,
+            text: `
+URGENT NOTIFICATION: Monitor Status Change
+
+--------------------------------------------------
+TARGET:   ${site.url}
+STATUS:   ${status}
+TIME:     ${new Date().toLocaleString()}
+--------------------------------------------------
+
+This is an automated alert from UptimeGuard.
+Please check your dashboard for more details.
+
+Dashboard: https://uptimegaurd.isharankumar.com/
+`.trim()
         });
         console.log(`📧 Status Email sent for ${site.url}`);
     } catch (error) {
