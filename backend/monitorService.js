@@ -79,7 +79,7 @@ const sendStatusAlert = async (site, status) => {
 
     try {
         await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: process.env.SENDER_EMAIL,
             to: process.env.TO_MAIL,
             subject: `${icon} ALERT: ${site.url} is ${status}`,
             html: htmlContent
