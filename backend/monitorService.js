@@ -9,7 +9,7 @@ const dns = require('dns').promises;
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
-    secure: false,
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -24,7 +24,7 @@ const sendSSLAlert = async (site, daysLeft) => {
     try {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER,
+            to: process.env.TO_MAIL,
             subject: `URGENT: SSL Expiring in ${daysLeft} days - ${site.url}`,
             text: `Action Required: The SSL certificate for ${site.url} will expire in ${daysLeft} days. Please renew it immediately to avoid downtime.`
         });
@@ -35,27 +35,54 @@ const sendSSLAlert = async (site, daysLeft) => {
 
 // --- UPDATED: Send Uptime/Downtime Alerts (Plain Text) ---
 const sendStatusAlert = async (site, status) => {
-
     if (!process.env.EMAIL_USER) return;
+
+    const isDown = status === 'DOWN';
+    const color = isDown ? '#ef4444' : '#22c55e';
+    const title = isDown ? 'Website is Down' : 'Website Recovered';
+    const icon = isDown ? '🚨' : '✅';
+    const dashboardLink = "https://uptimegaurd.isharankumar.com/";
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+                <tr><td height="6" style="background-color:${color};"></td></tr>
+                <tr>
+                  <td style="padding:40px;">
+                    <div style="text-align:center;margin-bottom:20px;">
+                      <span style="font-size:40px;">${icon}</span>
+                      <h1 style="color:#111827;margin-top:10px;">${title}</h1>
+                      <p style="color:#6b7280;">Status change detected for your monitor.</p>
+                    </div>
+                    <div style="background-color:#f9fafb;padding:20px;border-radius:6px;border:1px solid #e5e7eb;">
+                      <p style="margin:5px 0;color:#6b7280;font-size:14px;"><strong>URL:</strong> <span style="color:#111827;font-family:monospace;">${site.url}</span></p>
+                      <p style="margin:5px 0;color:#6b7280;font-size:14px;"><strong>Time:</strong> <span style="color:#111827;">${new Date().toLocaleString()}</span></p>
+                      <p style="margin:5px 0;color:#6b7280;font-size:14px;"><strong>Status:</strong> <strong style="color:${color};">${status}</strong></p>
+                    </div>
+                    <div style="text-align:center;margin-top:30px;">
+                      <a href="${dashboardLink}" style="background-color:#111827;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Dashboard</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
     try {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER,
-            subject: `ALERT: ${site.url} is ${status}`,
-            text: `
-URGENT NOTIFICATION: Monitor Status Change
-
---------------------------------------------------
-TARGET:   ${site.url}
-STATUS:   ${status}
-TIME:     ${new Date().toLocaleString()}
---------------------------------------------------
-
-This is an automated alert from UptimeGuard.
-Please check your dashboard for more details.
-
-Dashboard: https://uptimegaurd.isharankumar.com/
-`.trim()
+            to: process.env.TO_MAIL,
+            subject: `${icon} ALERT: ${site.url} is ${status}`,
+            html: htmlContent
         });
         console.log(`📧 Status Email sent for ${site.url}`);
     } catch (error) {
