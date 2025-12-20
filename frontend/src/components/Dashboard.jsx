@@ -38,8 +38,7 @@ const Dashboard = () => {
         try {
             const res = await axios.get(`${API_URL}/api/monitor`, getAuthHeaders());
 
-            // --- FIX: Sort by ID (Creation Time) to prevent UI shuffling ---
-            // 'b' compared to 'a' puts the newest items first
+            // Sort by ID (Creation Time) to prevent UI shuffling
             const sortedSites = res.data.sort((a, b) => b._id.localeCompare(a._id));
 
             setSites(sortedSites);
@@ -73,18 +72,24 @@ const Dashboard = () => {
         }
     };
 
+    // --- MODIFIED: Handle Input Change ---
+    // 1. Strip Protocol
+    // 2. Force Lowercase immediately
     const handleUrlChange = (e) => {
-        const val = e.target.value.replace(/^https?:\/\//, '');
+        const val = e.target.value.replace(/^https?:\/\//, '').toLowerCase();
         setNewUrl(val);
     };
 
+    // --- MODIFIED: Add Site ---
     const addSite = async (e) => {
         e.preventDefault();
         if (!newUrl) return;
         setLoading(true);
 
         try {
-            const fullUrl = `https://${newUrl}`;
+            // Ensure payload is lowercase (double safety)
+            const fullUrl = `https://${newUrl.toLowerCase()}`;
+
             await axios.post(`${API_URL}/api/monitor/add`, { url: fullUrl }, getAuthHeaders());
 
             setNewUrl('');
@@ -99,7 +104,7 @@ const Dashboard = () => {
             if (error.response && error.response.status === 409) {
                 showToast('warning', 'Duplicate Entry', (
                     <span>
-                        The website <strong className="font-bold text-gray-900">{newUrl}</strong> is already in your dashboard.
+                        The website <strong className="font-bold text-gray-900">{newUrl.toLowerCase()}</strong> is already in your dashboard.
                     </span>
                 ));
             } else {
@@ -112,12 +117,11 @@ const Dashboard = () => {
     const deleteSite = async (id) => {
         try {
             await axios.delete(`${API_URL}/api/monitor/${id}`, getAuthHeaders());
-            // Filter locally first for instant UI update
             setSites(prevSites => prevSites.filter(site => site._id !== id));
             showToast('success', 'Deleted', 'Site removed successfully.');
         } catch (error) {
             showToast('error', 'Error', 'Failed to delete site.');
-            fetchSites(); // Re-fetch if delete failed to ensure sync
+            fetchSites();
         }
     };
 
