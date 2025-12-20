@@ -6,7 +6,7 @@ const mongoose = require('mongoose'); // Import Mongoose
 const monitorService = require('./monitorService');
 const authRoutes = require('./routes/auth');
 const monitorRoutes = require('./routes/monitor');
-const startCronJobs = require('./cron');
+// const startCronJobs = require('./cron');
 
 const app = express();
 app.use(cors({
@@ -30,7 +30,7 @@ app.use('/api/monitor', monitorRoutes);
 
 // Scheduled Task: Run every 1 minutes
 app.get('/', (req, res) => res.send("API is Working"))
-startCronJobs();
+// startCronJobs();
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
