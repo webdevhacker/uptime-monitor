@@ -1,6 +1,5 @@
 const axios = require('axios');
 const sslChecker = require('ssl-checker');
-const whoiser = require('whoiser');
 const nodemailer = require('nodemailer');
 const Site = require('./models/Site');
 const dns = require('dns').promises;
@@ -87,25 +86,6 @@ const sendStatusAlert = async (site, status) => {
         console.log(`📧 Status Email sent for ${site.url}`);
     } catch (error) {
         console.error('Status Email failed:', error);
-    }
-};
-
-// Helper: Robust WHOIS Parser
-const getDomainExpiry = async (hostname) => {
-    try {
-        const domainData = await whoiser(hostname);
-        for (const key in domainData) {
-            const data = domainData[key];
-            const expiry = data['Expiry Date'] ||
-                data['Registry Expiry Date'] ||
-                data['registrarRegistrationExpirationDate'] ||
-                data['expirationDate'];
-
-            if (expiry) return expiry;
-        }
-        return null;
-    } catch (e) {
-        return null;
     }
 };
 
