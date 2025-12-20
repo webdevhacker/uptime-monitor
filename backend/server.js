@@ -9,7 +9,14 @@ const monitorRoutes = require('./routes/monitor');
 const startCronJobs = require('./cron');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: [
+        "http://localhost:5173",
+        "https://uptimegaurd.isharankumar.com"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}));
 app.use(express.json());
 
 // Connect to MongoDB 
