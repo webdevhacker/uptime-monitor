@@ -22,6 +22,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/monitor', monitorRoutes);
 
 // Scheduled Task: Run every 1 minutes
+app.get('/', (req, res) => res.send("API is Working"))
 startCronJobs();
 
 const PORT = process.env.PORT || 5000;
