@@ -35,7 +35,7 @@ const sendSSLAlert = async (site, daysLeft) => {
 
 // --- UPDATED: Send Uptime/Downtime Alerts (Plain Text) ---
 const sendStatusAlert = async (site, status) => {
-    const dashboardLink = "http://localhost:5173";
+
     if (!process.env.EMAIL_USER) return;
     try {
         await transporter.sendMail({
