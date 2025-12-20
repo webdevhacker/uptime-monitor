@@ -39,7 +39,7 @@ const sendStatusAlert = async (site, status) => {
 
     const isDown = status === 'DOWN';
     const icon = isDown ? '🚨' : '✅';
-    const dashboardLink = "http://localhost:5173"; // Replace with your Vercel URL in production
+    const dashboardLink = "https://uptimegaurd.isharankumar.com/"; // Replace with your Vercel URL in production
 
     // Plain Text Content
     const textContent = `
@@ -104,7 +104,7 @@ exports.checkAllSites = async () => {
 
                 // FIX: Added await here
                 if (site.status === 'DOWN') {
-                    await sendStatusAlert(site, 'UP');
+                    sendStatusAlert(site, 'UP');
                 }
 
                 site.status = 'UP';
@@ -112,7 +112,7 @@ exports.checkAllSites = async () => {
             } catch (err) {
                 // FIX: Added await here
                 if (site.status === 'UP') {
-                    await sendStatusAlert(site, 'DOWN');
+                    sendStatusAlert(site, 'DOWN');
                 }
                 site.status = 'DOWN';
             }
@@ -142,13 +142,13 @@ exports.checkAllSites = async () => {
                 }
 
                 if (days <= 30 && days > 10 && !site.sslInfo.alertSent30) {
-                    await sendSSLAlert(site, days);
+                    sendSSLAlert(site, days);
                     site.sslInfo.alertSent30 = true;
                     isDirty = true;
                 }
 
                 if (days <= 10 && !site.sslInfo.alertSent10) {
-                    await sendSSLAlert(site, days);
+                    sendSSLAlert(site, days);
                     site.sslInfo.alertSent10 = true;
                     site.sslInfo.alertSent30 = true;
                     isDirty = true;
