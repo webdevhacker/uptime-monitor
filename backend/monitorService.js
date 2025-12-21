@@ -162,15 +162,6 @@ exports.checkAllSites = async () => {
                 // SSL check failed
             }
 
-            // --- 3. DOMAIN INFO CHECK ---
-            if (!site.domainInfo || !site.domainInfo.expiry || site.domainInfo.expiry === 'Unknown') {
-                const expiryDate = await getDomainExpiry(hostname);
-                if (expiryDate) {
-                    site.domainInfo = { expiry: expiryDate };
-                    isDirty = true;
-                }
-            }
-
             // --- 4. HOSTING & IP INFO CHECK ---
             if (!site.ipAddress || site.ipAddress === 'Unknown' || !site.hosting) {
                 try {

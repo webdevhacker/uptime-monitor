@@ -3,12 +3,14 @@ import axios from 'axios';
 import Header from './Header'; // <--- Import Header
 import { useNavigate } from 'react-router-dom';
 import { Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const Login = ({ setToken }) => {
     const [creds, setCreds] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -20,8 +22,8 @@ const Login = ({ setToken }) => {
         try {
             const res = await axios.post(`${API_URL}/api/auth/login`, creds);
             localStorage.setItem('token', res.data.token);
-            setToken(res.data.token);
-            navigate('/');
+            login(res.data.token);
+            navigate('/', { replace: true });
         } catch (err) {
             setError('Invalid credentials. Please try again.');
         } finally {

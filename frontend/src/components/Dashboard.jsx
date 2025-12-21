@@ -289,7 +289,7 @@ const Dashboard = () => {
                                     ${notification.type === 'success' ? 'bg-green-600 hover:bg-green-700 shadow-green-200' :
                                     notification.type === 'error' ? 'bg-red-600 hover:bg-red-700 shadow-red-200' :
                                         'bg-amber-500 hover:bg-amber-600 shadow-amber-200'}`}>
-                                {notification.type === 'success' ? 'Great!' : 'Okay, got it'}
+                                {notification.type === 'success' ? 'Okay!' : 'Okay, got it'}
                             </button>
                         </div>
                     </div>

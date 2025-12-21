@@ -1,24 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const Site = require('../models/Site'); // Import Model
-const monitorService = require('../monitorService');
+const Site = require('../models/Site');
+const { checkAllSites } = require('../monitorService');
 const jwt = require('jsonwebtoken');
-const auth = require('../routes/auth');
-const { checkAllSites, checkSite } = require('../monitorService');
-// Middleware
+
+// 👇 1. FIXED MIDDLEWARE (Uses the correct Secret)
 const authenticate = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).send('Token required');
+    // Check for token in 'x-auth-token' (Standard) or 'Authorization'
+    const token = req.header('x-auth-token') || req.headers['authorization'];
+
+    if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
+
     try {
-        const bearer = token.split(' ')[1];
-        jwt.verify(bearer, process.env.ADMIN_SECRET);
+        const tokenString = token.startsWith('Bearer ') ? token.slice(7, token.length) : token;
+        const decoded = jwt.verify(tokenString, process.env.JWT_SECRET);
+
+        req.user = decoded;
         next();
     } catch (e) {
-        res.status(401).send('Invalid Token');
+        res.status(401).json({ message: 'Token is not valid' });
     }
 };
 
-// GET all sites from DB
+// GET all sites (Protected)
 router.get('/', authenticate, async (req, res) => {
     try {
         const sites = await Site.find().sort({ lastChecked: -1 });
@@ -28,13 +32,13 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-// POST add new site to DB
-router.post('/add', auth, async (req, res) => {
+// POST add new site (Protected)
+router.post('/add', authenticate, async (req, res) => {
     try {
         const { url } = req.body;
+        if (!url) return res.status(400).json({ message: "URL is required" });
 
         const existingSite = await Site.findOne({ url });
-
         if (existingSite) {
             return res.status(409).json({ message: 'This website is already being monitored.' });
         }
@@ -53,6 +57,7 @@ router.post('/add', auth, async (req, res) => {
     }
 });
 
+// DELETE site (Protected)
 router.delete('/:id', authenticate, async (req, res) => {
     try {
         await Site.findByIdAndDelete(req.params.id);
@@ -62,22 +67,23 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 
+// CRON TASK (For Vercel Cron Jobs)
 router.get('/crontask', async (req, res) => {
     try {
-        const secret = req.headers['x-cron-secret'];
+        // Optional: Secure this route so only Vercel can call it
+        const secret = req.headers['authorization'];
+        // if (secret !== `Bearer ${process.env.CRON_SECRET}`) return res.status(401).send('Unauthorized');
 
-        if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-            return res.status(403).json({ message: 'Unauthorized: Invalid Secret' });
-        }
+        console.log('🔄 Cron Triggered: Checking Sites...');
 
-        console.log('🔄 API Route Triggered: Starting Check Loop...');
+        // ⚠️ CRITICAL FIX FOR VERCEL: You MUST use 'await'
+        // If you don't await, Vercel kills the server before checks finish.
+        await checkAllSites();
 
-        checkAllSites();
-
-        res.status(200).json({ message: 'Monitoring job started successfully' });
+        res.status(200).json({ message: 'Monitoring Completed' });
 
     } catch (error) {
-        console.error(error);
+        console.error("Cron Failed:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
