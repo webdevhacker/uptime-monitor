@@ -18,12 +18,41 @@ const transporter = nodemailer.createTransport({
 // --- HELPER 1: SSL ALERT ---
 const sendSSLAlert = async (site, daysLeft) => {
     if (!process.env.EMAIL_USER) return;
+
+    // SSL Warning Colors (Amber/Orange)
+    const color = '#f59e0b';
+    const title = 'SSL Certificate Expiring';
+    const icon = '🔒';
+    const dashboardLink = "https://uptimegaurd.isharankumar.com/";
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f3f4f6;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; border-top: 6px solid ${color};">
+            <h1 style="text-align: center; color: #111827;">${icon} ${title}</h1>
+            
+            <div style="background: #fffbeb; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid ${color};">
+                <p style="margin: 0 0 10px 0;"><strong>URL:</strong> ${site.url}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Status:</strong> <span style="color: ${color}; font-weight: bold;">Expiring Soon</span></p>
+                <p style="margin: 0;"><strong>Days Remaining:</strong> <span style="font-size: 18px; font-weight: bold; color: #b45309;">${daysLeft} Days</span></p>
+            </div>
+
+            <p style="color: #4b5563; text-align: center; margin-bottom: 30px;">
+                Action Required: The SSL certificate for this site will expire soon. Please renew it immediately to avoid security warnings for your users.
+            </p>
+
+            <div style="text-align: center;">
+                <a href="${dashboardLink}" style="background: #111827; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Open Dashboard</a>
+            </div>
+        </div>
+      </div>
+    `;
+
     try {
         await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: process.env.SENDER_EMAIL,
             to: process.env.TO_MAIL,
-            subject: `URGENT: SSL Expiring in ${daysLeft} days - ${site.url}`,
-            text: `Action Required: The SSL certificate for ${site.url} will expire in ${daysLeft} days.`
+            subject: `${icon} URGENT: SSL Expiring in ${daysLeft} days - ${site.url}`,
+            html: htmlContent
         });
         console.log(`📧 SSL Alert sent for ${site.url}`);
     } catch (error) {
@@ -59,7 +88,7 @@ const sendStatusAlert = async (site, status) => {
 
     try {
         await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: process.env.SENDER_EMAIL,
             to: process.env.TO_MAIL,
             subject: `${icon} ALERT: ${site.url} is ${status}`,
             html: htmlContent
