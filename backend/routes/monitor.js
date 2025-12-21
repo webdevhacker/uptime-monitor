@@ -3,6 +3,7 @@ const router = express.Router();
 const Site = require('../models/Site');
 const { checkAllSites } = require('../monitorService');
 const jwt = require('jsonwebtoken');
+const connectDB = require('../config/db');
 
 // --- MIDDLEWARE: PROTECT DASHBOARD ROUTES ---
 const authenticate = (req, res, next) => {
@@ -24,9 +25,10 @@ const authenticate = (req, res, next) => {
 
 router.get('/crontask', async (req, res) => {
     try {
+        await connectDB();
+
         const secret = req.headers['x-cron-secret'];
 
-        // 1. Verify it's actually FastCron calling
         if (secret !== process.env.CRON_SECRET) {
             console.log("⛔ Unauthorized Cron Attempt");
             return res.status(403).json({ message: 'Unauthorized' });
