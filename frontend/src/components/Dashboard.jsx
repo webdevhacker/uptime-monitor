@@ -11,7 +11,13 @@ import {
 const Dashboard = () => {
     const [sites, setSites] = useState([]);
     const [newUrl, setNewUrl] = useState('');
+
+    // 1️⃣ EXISTING: Loading for "Add Button"
     const [loading, setLoading] = useState(false);
+
+    // 2️⃣ NEW: Loading for "Initial Page Load"
+    const [isFetching, setIsFetching] = useState(true);
+
     const [filter, setFilter] = useState('ALL');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -37,10 +43,8 @@ const Dashboard = () => {
     const fetchSites = async () => {
         try {
             const res = await axios.get(`${API_URL}/api/monitor`, getAuthHeaders());
-
             // Sort by ID (Creation Time) to prevent UI shuffling
             const sortedSites = res.data.sort((a, b) => b._id.localeCompare(a._id));
-
             setSites(sortedSites);
         } catch (error) {
             console.error("Error fetching sites:", error);
@@ -48,6 +52,9 @@ const Dashboard = () => {
                 localStorage.removeItem('token');
                 window.location.reload();
             }
+        } finally {
+            // 3️⃣ TURN OFF LOADING: Once first fetch is done (success or fail)
+            setIsFetching(false);
         }
     };
 
@@ -72,24 +79,18 @@ const Dashboard = () => {
         }
     };
 
-    // --- MODIFIED: Handle Input Change ---
-    // 1. Strip Protocol
-    // 2. Force Lowercase immediately
     const handleUrlChange = (e) => {
         const val = e.target.value.replace(/^https?:\/\//, '').toLowerCase();
         setNewUrl(val);
     };
 
-    // --- MODIFIED: Add Site ---
     const addSite = async (e) => {
         e.preventDefault();
         if (!newUrl) return;
         setLoading(true);
 
         try {
-            // Ensure payload is lowercase (double safety)
             const fullUrl = `https://${newUrl.toLowerCase()}`;
-
             await axios.post(`${API_URL}/api/monitor/add`, { url: fullUrl }, getAuthHeaders());
 
             setNewUrl('');
@@ -164,6 +165,24 @@ const Dashboard = () => {
         </button>
     );
 
+    // 4️⃣ NEW: Component for Loading Skeleton
+    const SkeletonCard = () => (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse h-48 flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-4">
+                <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-6 w-6 bg-gray-200 rounded-full"></div>
+            </div>
+            <div className="space-y-3">
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between">
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
 
@@ -223,7 +242,15 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {currentSites.length > 0 ? (
+                {/* 5️⃣ CONDITIONAL RENDERING: Show Skeletons OR Real Data */}
+                {isFetching ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        {/* Show 6 fake cards while loading */}
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <SkeletonCard key={i} />
+                        ))}
+                    </div>
+                ) : currentSites.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                             {currentSites.map((site) => (
