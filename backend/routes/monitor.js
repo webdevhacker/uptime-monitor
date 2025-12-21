@@ -21,6 +21,20 @@ const authenticate = (req, res, next) => {
         res.status(401).json({ message: 'Token is not valid' });
     }
 };
+// backend/routes/monitor.js
+
+// 👇 ADD THIS TEMPORARY DEBUG ROUTE
+router.get('/test-cron', (req, res) => {
+    const serverSecret = process.env.CRON_SECRET;
+    const receivedSecret = req.headers['x-cron-secret'];
+
+    res.json({
+        message: "Debug Route Works!",
+        serverHasSecret: serverSecret ? "YES" : "NO (Check Vercel Env Vars)",
+        receivedSecret: receivedSecret || "NONE (Check FastCron Headers)",
+        match: serverSecret === receivedSecret ? "YES" : "NO"
+    });
+});
 
 // --- ROUTE 1: FASTCRON TRIGGER (Public but Secured with Secret) ---
 router.get('/crontask', async (req, res) => {
