@@ -1,19 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Search, X, Bell, AlertTriangle } from 'lucide-react';
 
-const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sites = [] }) => {
+// 👇 ADD isAuthenticated to props (default false)
+const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sites = [], isAuthenticated = false }) => {
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const notifRef = useRef(null);
 
-    // 1. Filter sites expiring in 7 days or less
     const expiringSites = sites.filter(site =>
         site.sslInfo &&
         site.sslInfo.valid &&
         site.sslInfo.daysRemaining <= 7
     );
 
-    // Close dropdown if clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (notifRef.current && !notifRef.current.contains(event.target)) {
@@ -28,7 +27,7 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
 
-                {/* --- Left: Logo --- */}
+                {/* Left: Logo */}
                 <div className={`items-center gap-3 ${isMobileSearchOpen ? 'hidden md:flex' : 'flex'}`}>
                     <div className="bg-blue-600 p-2 rounded-lg text-white">
                         <LayoutDashboard size={20} />
@@ -38,11 +37,11 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
                     </span>
                 </div>
 
-                {/* --- Right: Search + Notifications + Actions --- */}
+                {/* Right: Search + Notifications + Actions */}
                 <div className={`flex items-center gap-2 sm:gap-4 flex-1 justify-end ${isMobileSearchOpen ? 'w-full' : ''}`}>
 
-                    {/* Search Bar Logic (Unchanged) */}
-                    {showSearch && (
+                    {/* Search Bar (Only shows if showSearch is true AND authenticated) */}
+                    {showSearch && isAuthenticated && (
                         <>
                             {!isMobileSearchOpen && (
                                 <button
@@ -76,15 +75,14 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
                         </>
                     )}
 
-                    {/* --- 2. NOTIFICATION BELL (Only visible on Desktop or when Search Closed) --- */}
-                    {!isMobileSearchOpen && (
+                    {/* --- NOTIFICATION BELL (Only visible if Authenticated) --- */}
+                    {!isMobileSearchOpen && isAuthenticated && (
                         <div className="relative" ref={notifRef}>
                             <button
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
                             >
                                 <Bell size={20} />
-                                {/* Red Badge count */}
                                 {expiringSites.length > 0 && (
                                     <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
                                         {expiringSites.length}
@@ -92,9 +90,13 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
                                 )}
                             </button>
 
-                            {/* Notification Dropdown */}
                             {showNotifications && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-in fade-in zoom-in-95 origin-top-right z-50">
+                                <div className={`
+                                    bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50
+                                    animate-in fade-in zoom-in-95 origin-top-right
+                                    fixed left-4 right-4 top-16 mt-2
+                                    md:absolute md:right-0 md:left-auto md:top-full md:w-80 md:mt-2
+                                `}>
                                     <div className="px-4 py-2 border-b border-gray-100">
                                         <h3 className="font-semibold text-gray-900">Notifications</h3>
                                     </div>
@@ -116,9 +118,9 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">
-                                                                {site.url.replace('https://', '')}
+                                                                {site.url.replace(/^https?:\/\//, '')}
                                                             </p>
-                                                            <p className="text-xs text-amber-600 font-medium mt-0.5">
+                                                            <p className="text-xs text-amber-600 font-semibold mt-0.5">
                                                                 SSL Expires in {site.sslInfo.daysRemaining} days
                                                             </p>
                                                         </div>
@@ -132,7 +134,7 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
                         </div>
                     )}
 
-                    {/* Action Buttons (Logout) */}
+                    {/* Action Buttons (Logout) - Always show children if provided */}
                     <div className={`shrink-0 border-l border-gray-200 pl-4 ml-2 ${isMobileSearchOpen ? 'hidden md:block' : 'block'}`}>
                         {children}
                     </div>
