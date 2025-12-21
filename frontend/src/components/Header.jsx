@@ -1,16 +1,34 @@
-import React, { useState } from 'react';
-import { LayoutDashboard, Search, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { LayoutDashboard, Search, X, Bell, AlertTriangle } from 'lucide-react';
 
-const Header = ({ children, searchQuery, setSearchQuery, showSearch = false }) => {
-    // State to toggle search bar visibility on mobile
+const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sites = [] }) => {
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const notifRef = useRef(null);
+
+    // 1. Filter sites expiring in 7 days or less
+    const expiringSites = sites.filter(site =>
+        site.sslInfo &&
+        site.sslInfo.valid &&
+        site.sslInfo.daysRemaining <= 7
+    );
+
+    // Close dropdown if clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (notifRef.current && !notifRef.current.contains(event.target)) {
+                setShowNotifications(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
 
                 {/* --- Left: Logo --- */}
-                {/* Hide Logo on Mobile if Search is Open to make room */}
                 <div className={`items-center gap-3 ${isMobileSearchOpen ? 'hidden md:flex' : 'flex'}`}>
                     <div className="bg-blue-600 p-2 rounded-lg text-white">
                         <LayoutDashboard size={20} />
@@ -20,12 +38,12 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false }) =
                     </span>
                 </div>
 
-                {/* --- Right: Search + Actions --- */}
+                {/* --- Right: Search + Notifications + Actions --- */}
                 <div className={`flex items-center gap-2 sm:gap-4 flex-1 justify-end ${isMobileSearchOpen ? 'w-full' : ''}`}>
 
+                    {/* Search Bar Logic (Unchanged) */}
                     {showSearch && (
                         <>
-                            {/* 1. Mobile Search Trigger Icon (Visible only on mobile when search is closed) */}
                             {!isMobileSearchOpen && (
                                 <button
                                     onClick={() => setIsMobileSearchOpen(true)}
@@ -35,34 +53,22 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false }) =
                                 </button>
                             )}
 
-                            {/* 2. Search Input Container */}
-                            {/* Mobile: Flex & Full Width (when open) | Desktop: Block & Fixed Width */}
-                            <div className={`
-                                ${isMobileSearchOpen ? 'flex flex-1 w-full items-center gap-2' : 'hidden md:block relative w-full max-w-xs group'}
-                            `}>
+                            <div className={`${isMobileSearchOpen ? 'flex flex-1 w-full items-center gap-2' : 'hidden md:block relative w-full max-w-xs group'}`}>
                                 <div className="relative w-full">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
                                         <Search size={16} />
                                     </div>
                                     <input
                                         type="text"
-                                        autoFocus={isMobileSearchOpen} // Auto-focus when opening on mobile
+                                        autoFocus={isMobileSearchOpen}
                                         placeholder="Search sites..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full pl-9 pr-4 py-2 rounded-full border border-gray-200 bg-gray-50 text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm"
                                     />
                                 </div>
-
-                                {/* Close Button (Only for Mobile Search Mode) */}
                                 {isMobileSearchOpen && (
-                                    <button
-                                        onClick={() => {
-                                            setIsMobileSearchOpen(false);
-                                            setSearchQuery(''); // Optional: Clear search on close
-                                        }}
-                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                    >
+                                    <button onClick={() => setIsMobileSearchOpen(false)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
                                         <X size={20} />
                                     </button>
                                 )}
@@ -70,8 +76,63 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false }) =
                         </>
                     )}
 
-                    {/* --- Action Buttons (Logout) --- */}
-                    {/* Hide on Mobile if Search is Open */}
+                    {/* --- 2. NOTIFICATION BELL (Only visible on Desktop or when Search Closed) --- */}
+                    {!isMobileSearchOpen && (
+                        <div className="relative" ref={notifRef}>
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <Bell size={20} />
+                                {/* Red Badge count */}
+                                {expiringSites.length > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                        {expiringSites.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Notification Dropdown */}
+                            {showNotifications && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-in fade-in zoom-in-95 origin-top-right z-50">
+                                    <div className="px-4 py-2 border-b border-gray-100">
+                                        <h3 className="font-semibold text-gray-900">Notifications</h3>
+                                    </div>
+
+                                    <div className="max-h-[300px] overflow-y-auto">
+                                        {expiringSites.length === 0 ? (
+                                            <div className="p-8 text-center text-gray-500 text-sm">
+                                                <div className="mx-auto w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mb-2">
+                                                    <Bell size={18} className="text-gray-400" />
+                                                </div>
+                                                <p>All certificates are healthy.</p>
+                                            </div>
+                                        ) : (
+                                            expiringSites.map(site => (
+                                                <div key={site._id} className="px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="bg-amber-100 text-amber-600 p-2 rounded-full shrink-0">
+                                                            <AlertTriangle size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">
+                                                                {site.url.replace('https://', '')}
+                                                            </p>
+                                                            <p className="text-xs text-amber-600 font-medium mt-0.5">
+                                                                Expires in {site.sslInfo.daysRemaining} days
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Action Buttons (Logout) */}
                     <div className={`shrink-0 border-l border-gray-200 pl-4 ml-2 ${isMobileSearchOpen ? 'hidden md:block' : 'block'}`}>
                         {children}
                     </div>

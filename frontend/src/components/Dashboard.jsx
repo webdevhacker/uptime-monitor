@@ -187,7 +187,7 @@ const Dashboard = () => {
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
 
-            <Header showSearch={true} searchQuery={searchQuery} setSearchQuery={setSearchQuery}>
+            <Header showSearch={true} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sites={sites}>
                 <button onClick={handleLogout} className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-red-600 transition-colors px-3 py-2 rounded-md hover:bg-red-50">
                     <LogOut size={18} />
                     <span className="hidden sm:inline">Logout</span>

@@ -22,7 +22,6 @@ const authenticate = (req, res, next) => {
     }
 };
 
-// --- ROUTE 1: FASTCRON TRIGGER (Public but Secured with Secret) ---
 router.get('/crontask', async (req, res) => {
     try {
         const secret = req.headers['x-cron-secret'];
@@ -35,7 +34,6 @@ router.get('/crontask', async (req, res) => {
 
         console.log('🔄 FastCron Triggered...');
 
-        // 2. Await the parallel checks (Keeps Vercel alive)
         await checkAllSites();
 
         res.status(200).json({ message: 'Monitoring Completed Successfully' });
