@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
 const Site = require('./models/Site');
 const dns = require('dns').promises;
 
-// Email Configuration
+// --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
@@ -15,24 +15,23 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Helper: Send SSL Specific Alerts (Already Text)
+// --- HELPER 1: SSL ALERT ---
 const sendSSLAlert = async (site, daysLeft) => {
     if (!process.env.EMAIL_USER) return;
-    console.log(`🔒 Sending SSL Expiry Alert for ${site.url} (${daysLeft} days left)`);
-
     try {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: process.env.TO_MAIL,
             subject: `URGENT: SSL Expiring in ${daysLeft} days - ${site.url}`,
-            text: `Action Required: The SSL certificate for ${site.url} will expire in ${daysLeft} days. Please renew it immediately to avoid downtime.`
+            text: `Action Required: The SSL certificate for ${site.url} will expire in ${daysLeft} days.`
         });
+        console.log(`📧 SSL Alert sent for ${site.url}`);
     } catch (error) {
-        console.error('SSL Email failed:', error);
+        console.error('SSL Email failed:', error.message);
     }
 };
 
-// --- UPDATED: Send Uptime/Downtime Alerts (Plain Text) ---
+// --- HELPER 2: STATUS ALERT (HTML) ---
 const sendStatusAlert = async (site, status) => {
     if (!process.env.EMAIL_USER) return;
 
@@ -43,69 +42,57 @@ const sendStatusAlert = async (site, status) => {
     const dashboardLink = "https://uptimegaurd.isharankumar.com/";
 
     const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,sans-serif;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-          <tr>
-            <td align="center">
-              <table width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-                <tr><td height="6" style="background-color:${color};"></td></tr>
-                <tr>
-                  <td style="padding:40px;">
-                    <div style="text-align:center;margin-bottom:20px;">
-                      <span style="font-size:40px;">${icon}</span>
-                      <h1 style="color:#111827;margin-top:10px;">${title}</h1>
-                      <p style="color:#6b7280;">Status change detected for your monitor.</p>
-                    </div>
-                    <div style="background-color:#f9fafb;padding:20px;border-radius:6px;border:1px solid #e5e7eb;">
-                      <p style="margin:5px 0;color:#6b7280;font-size:14px;"><strong>URL:</strong> <span style="color:#111827;font-family:monospace;">${site.url}</span></p>
-                      <p style="margin:5px 0;color:#6b7280;font-size:14px;"><strong>Time:</strong> <span style="color:#111827;">${new Date().toLocaleString()}</span></p>
-                      <p style="margin:5px 0;color:#6b7280;font-size:14px;"><strong>Status:</strong> <strong style="color:${color};">${status}</strong></p>
-                    </div>
-                    <div style="text-align:center;margin-top:30px;">
-                      <a href="${dashboardLink}" style="background-color:#111827;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Dashboard</a>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f3f4f6;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; border-top: 6px solid ${color};">
+            <h1 style="text-align: center; color: #111827;">${icon} ${title}</h1>
+            <div style="background: #f9fafb; padding: 20px; border-radius: 6px; margin: 20px 0;">
+                <p><strong>URL:</strong> ${site.url}</p>
+                <p><strong>Status:</strong> <span style="color: ${color}; font-weight: bold;">${status}</span></p>
+                <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            <div style="text-align: center;">
+                <a href="${dashboardLink}" style="background: #111827; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Open Dashboard</a>
+            </div>
+        </div>
+      </div>
     `;
 
     try {
         await transporter.sendMail({
-            from: process.env.SENDER_EMAIL,
+            from: process.env.EMAIL_USER,
             to: process.env.TO_MAIL,
             subject: `${icon} ALERT: ${site.url} is ${status}`,
             html: htmlContent
         });
         console.log(`📧 Status Email sent for ${site.url}`);
     } catch (error) {
-        console.error('Status Email failed:', error);
+        console.error('Status Email failed:', error.message);
     }
 };
 
-// --- MAIN CHECK LOOP ---
+// --- MAIN FUNCTION: PARALLEL CHECK ---
 exports.checkAllSites = async () => {
-    console.log('--- Starting Check Loop ---');
-    const sites = await Site.find({});
+    console.log('🚀 Starting Parallel Check Loop...');
 
-    for (let site of sites) {
-        console.log(`Checking ${site.url}...`);
+    // 1. Get all sites
+    const sites = await Site.find({});
+    if (sites.length === 0) {
+        console.log("No sites to check.");
+        return;
+    }
+
+    // 2. Map sites to Promises (Run all at once)
+    const checks = sites.map(async (site) => {
         let isDirty = false;
 
         try {
-            // --- 1. UPTIME CHECK ---
+            // --- A. UPTIME CHECK ---
             const start = Date.now();
             try {
-                await axios.get(site.url, { timeout: 10000 });
+                // Reduced timeout to 5s to fit Vercel limits
+                await axios.get(site.url, { timeout: 5000 });
                 const duration = Date.now() - start;
 
-                // FIX: Added await here
                 if (site.status === 'DOWN') {
                     sendStatusAlert(site, 'UP');
                 }
@@ -113,7 +100,6 @@ exports.checkAllSites = async () => {
                 site.status = 'UP';
                 site.responseTime = duration;
             } catch (err) {
-                // FIX: Added await here
                 if (site.status === 'UP') {
                     sendStatusAlert(site, 'DOWN');
                 }
@@ -122,72 +108,56 @@ exports.checkAllSites = async () => {
             site.lastChecked = Date.now();
             isDirty = true;
 
-            const hostname = new URL(site.url).hostname;
+            // --- B. SSL & INFO CHECK (Only if site is UP to save time) ---
+            if (site.status === 'UP') {
+                const hostname = new URL(site.url).hostname;
 
-            // --- 2. SSL CHECK & ALERTS ---
-            try {
-                const sslData = await sslChecker(hostname);
+                // SSL Check
+                try {
+                    const sslData = await sslChecker(hostname);
+                    if (!site.sslInfo) site.sslInfo = {};
 
-                if (!site.sslInfo) site.sslInfo = {};
+                    site.sslInfo.valid = !sslData.expired;
+                    site.sslInfo.daysRemaining = sslData.daysRemaining;
+                    site.sslInfo.validTo = sslData.validTo;
 
-                site.sslInfo.valid = !sslData.expired;
-                site.sslInfo.daysRemaining = sslData.daysRemaining;
-                site.sslInfo.validTo = sslData.validTo;
-
-                const days = sslData.daysRemaining;
-
-                if (days > 30) {
-                    if (site.sslInfo.alertSent30 || site.sslInfo.alertSent10) {
+                    const days = sslData.daysRemaining;
+                    if (days > 30 && (site.sslInfo.alertSent30 || site.sslInfo.alertSent10)) {
                         site.sslInfo.alertSent30 = false;
                         site.sslInfo.alertSent10 = false;
-                        isDirty = true;
+                    } else if (days <= 30 && days > 10 && !site.sslInfo.alertSent30) {
+                        sendSSLAlert(site, days);
+                        site.sslInfo.alertSent30 = true;
+                    } else if (days <= 10 && !site.sslInfo.alertSent10) {
+                        sendSSLAlert(site, days);
+                        site.sslInfo.alertSent10 = true;
                     }
-                }
+                } catch (e) { /* SSL Failed, ignore */ }
 
-                if (days <= 30 && days > 10 && !site.sslInfo.alertSent30) {
-                    sendSSLAlert(site, days);
-                    site.sslInfo.alertSent30 = true;
-                    isDirty = true;
-                }
-
-                if (days <= 10 && !site.sslInfo.alertSent10) {
-                    sendSSLAlert(site, days);
-                    site.sslInfo.alertSent10 = true;
-                    site.sslInfo.alertSent30 = true;
-                    isDirty = true;
-                }
-
-                isDirty = true;
-            } catch (e) {
-                // SSL check failed
-            }
-
-            // --- 4. HOSTING & IP INFO CHECK ---
-            if (!site.ipAddress || site.ipAddress === 'Unknown' || !site.hosting) {
-                try {
-                    const { address } = await dns.lookup(hostname);
-                    if (address) {
-                        site.ipAddress = address;
-                        isDirty = true;
-                        const geoRes = await axios.get(`http://ip-api.com/json/${address}`);
-                        if (geoRes.data) {
-                            site.hosting = geoRes.data.isp || geoRes.data.org || 'Unknown';
+                // DNS/Hosting Check (Only if missing)
+                if (!site.ipAddress || site.ipAddress === 'Unknown') {
+                    try {
+                        const { address } = await dns.lookup(hostname);
+                        if (address) {
+                            site.ipAddress = address;
+                            const geoRes = await axios.get(`http://ip-api.com/json/${address}`);
+                            if (geoRes.data) site.hosting = geoRes.data.isp || 'Unknown';
                         }
-                    }
-                } catch (e) {
-                    console.error(`DNS/Hosting lookup failed for ${hostname}:`, e.message);
+                    } catch (e) { /* DNS Failed, ignore */ }
                 }
             }
 
-            // --- SAVE TO DB ---
+            // --- SAVE DB ---
             if (isDirty) {
                 site.markModified('sslInfo');
                 await site.save();
             }
 
         } catch (error) {
-            console.error(`Error checking ${site.url}:`, error.message);
+            console.error(`❌ Critical Error checking ${site.url}:`, error.message);
         }
-    }
-    console.log('--- Check Loop Completed ---');
+    });
+
+    await Promise.all(checks);
+    console.log('✅ All Checks Completed');
 };

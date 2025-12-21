@@ -4,17 +4,17 @@ const Site = require('../models/Site');
 const { checkAllSites } = require('../monitorService');
 const jwt = require('jsonwebtoken');
 
-// 👇 1. FIXED MIDDLEWARE (Uses the correct Secret)
+// --- MIDDLEWARE: PROTECT DASHBOARD ROUTES ---
 const authenticate = (req, res, next) => {
-    // Check for token in 'x-auth-token' (Standard) or 'Authorization'
+    // Accepts 'x-auth-token' OR 'Authorization: Bearer <token>'
     const token = req.header('x-auth-token') || req.headers['authorization'];
 
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     try {
-        const tokenString = token.startsWith('Bearer ') ? token.slice(7, token.length) : token;
+        const tokenString = token.startsWith('Bearer ') ? token.slice(7).trim() : token;
+        // Uses JWT_SECRET (Matches auth.js)
         const decoded = jwt.verify(tokenString, process.env.JWT_SECRET);
-
         req.user = decoded;
         next();
     } catch (e) {
@@ -22,7 +22,31 @@ const authenticate = (req, res, next) => {
     }
 };
 
-// GET all sites (Protected)
+// --- ROUTE 1: FASTCRON TRIGGER (Public but Secured with Secret) ---
+router.get('/crontask', async (req, res) => {
+    try {
+        const secret = req.headers['x-cron-secret'];
+
+        // 1. Verify it's actually FastCron calling
+        if (secret !== process.env.CRON_SECRET) {
+            console.log("⛔ Unauthorized Cron Attempt");
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        console.log('🔄 FastCron Triggered...');
+
+        // 2. Await the parallel checks (Keeps Vercel alive)
+        await checkAllSites();
+
+        res.status(200).json({ message: 'Monitoring Completed Successfully' });
+
+    } catch (error) {
+        console.error("Cron Error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// --- ROUTE 2: GET ALL SITES (Protected) ---
 router.get('/', authenticate, async (req, res) => {
     try {
         const sites = await Site.find().sort({ lastChecked: -1 });
@@ -32,59 +56,30 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-// POST add new site (Protected)
+// --- ROUTE 3: ADD SITE (Protected) ---
 router.post('/add', authenticate, async (req, res) => {
     try {
         const { url } = req.body;
         if (!url) return res.status(400).json({ message: "URL is required" });
 
         const existingSite = await Site.findOne({ url });
-        if (existingSite) {
-            return res.status(409).json({ message: 'This website is already being monitored.' });
-        }
+        if (existingSite) return res.status(409).json({ message: 'Site already exists' });
 
-        const newSite = new Site({
-            url,
-            status: 'PENDING'
-        });
-
+        const newSite = new Site({ url, status: 'PENDING' });
         await newSite.save();
         res.status(201).json(newSite);
-
     } catch (error) {
-        console.error('Error adding site:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
 
-// DELETE site (Protected)
+// --- ROUTE 4: DELETE SITE (Protected) ---
 router.delete('/:id', authenticate, async (req, res) => {
     try {
         await Site.findByIdAndDelete(req.params.id);
         res.json({ message: 'Site deleted' });
     } catch (err) {
         res.status(500).json({ message: 'Error deleting site' });
-    }
-});
-
-// CRON TASK (For Vercel Cron Jobs)
-router.get('/crontask', async (req, res) => {
-    try {
-        // Optional: Secure this route so only Vercel can call it
-        const secret = req.headers['authorization'];
-        // if (secret !== `Bearer ${process.env.CRON_SECRET}`) return res.status(401).send('Unauthorized');
-
-        console.log('🔄 Cron Triggered: Checking Sites...');
-
-        // ⚠️ CRITICAL FIX FOR VERCEL: You MUST use 'await'
-        // If you don't await, Vercel kills the server before checks finish.
-        await checkAllSites();
-
-        res.status(200).json({ message: 'Monitoring Completed' });
-
-    } catch (error) {
-        console.error("Cron Failed:", error);
-        res.status(500).json({ message: 'Server Error' });
     }
 });
 
