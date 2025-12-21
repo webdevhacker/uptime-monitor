@@ -119,7 +119,7 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
                                                                 {site.url.replace('https://', '')}
                                                             </p>
                                                             <p className="text-xs text-amber-600 font-medium mt-0.5">
-                                                                Expires in {site.sslInfo.daysRemaining} days
+                                                                SSL Expires in {site.sslInfo.daysRemaining} days
                                                             </p>
                                                         </div>
                                                     </div>
