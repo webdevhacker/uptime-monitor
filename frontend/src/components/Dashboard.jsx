@@ -80,17 +80,18 @@ const Dashboard = () => {
     };
 
     const handleUrlChange = (e) => {
-        const val = e.target.value.replace(/^https?:\/\//, '').toLowerCase();
+        const val = e.target.value.replace(/^https?:\/\//, '').replace(/\s/g, '').toLowerCase();
         setNewUrl(val);
     };
 
     const addSite = async (e) => {
         e.preventDefault();
-        if (!newUrl) return;
+        const cleanUrl = newUrl.trim();
+        if (!cleanUrl) return;
         setLoading(true);
 
         try {
-            const fullUrl = `https://${newUrl.toLowerCase()}`;
+            const fullUrl = `https://${cleanUrl.toLowerCase()}`;
             await axios.post(`${API_URL}/api/monitor/add`, { url: fullUrl }, getAuthHeaders());
 
             setNewUrl('');
