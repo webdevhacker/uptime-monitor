@@ -4,14 +4,54 @@ import { ShieldCheck, Server, Activity, Trash2, CheckCircle, XCircle, Clock, Clo
 const SiteCard = ({ site, onDelete }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-    const isUp = site.status === 'UP';
+    // --- 1. DETERMINE STATUS LOGIC ---
     const isDown = site.status === 'DOWN';
-    const isPending = !isUp && !isDown;
+    const isPending = site.status === 'PENDING' || !site.status;
+    const isSSLWarning = !isDown && !isPending && site.sslInfo && (
+        !site.sslInfo.valid || site.sslInfo.daysRemaining <= 7
+    );
 
-    // Dynamic styling
-    const statusColor = isUp ? 'text-green-600 bg-green-50' : isDown ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50';
-    const borderColor = isUp ? 'border-green-200' : isDown ? 'border-red-200' : 'border-amber-200';
-    const topBarColor = isUp ? 'bg-green-500' : isDown ? 'bg-red-500' : 'bg-amber-400';
+    const isHealthy = !isDown && !isPending && !isSSLWarning;
+
+    // --- 2. DYNAMIC STYLING CONFIGURATION ---
+    let statusConfig = {
+        // Default (Pending)
+        textColor: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        topBarColor: 'bg-blue-400',
+        icon: <Clock size={14} />,
+        label: 'PENDING'
+    };
+
+    if (isDown) {
+        statusConfig = {
+            textColor: 'text-red-600',
+            bgColor: 'bg-red-50',
+            borderColor: 'border-red-200',
+            topBarColor: 'bg-red-500',
+            icon: <XCircle size={14} />,
+            label: 'OFFLINE'
+        };
+    } else if (isSSLWarning) {
+        statusConfig = {
+            textColor: 'text-amber-700',
+            bgColor: 'bg-amber-50',
+            borderColor: 'border-amber-300',
+            topBarColor: 'bg-amber-500',
+            icon: <AlertTriangle size={14} />,
+            label: 'SSL WARNING'
+        };
+    } else if (isHealthy) {
+        statusConfig = {
+            textColor: 'text-green-600',
+            bgColor: 'bg-green-50',
+            borderColor: 'border-green-200',
+            topBarColor: 'bg-green-500',
+            icon: <CheckCircle size={14} />,
+            label: 'ONLINE'
+        };
+    }
 
     const handleDeleteClick = () => setShowDeleteModal(true);
     const confirmDelete = () => {
@@ -22,11 +62,10 @@ const SiteCard = ({ site, onDelete }) => {
     return (
         <>
             {/* --- MAIN CARD --- */}
-            {/* Added h-full to ensure card stretches to fill grid row */}
-            <div className={`relative group h-full bg-white rounded-xl border ${borderColor} shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col`}>
+            <div className={`relative group h-full bg-white rounded-xl border ${statusConfig.borderColor} shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col`}>
 
                 {/* Top Colored Line */}
-                <div className={`absolute top-0 left-0 w-full h-1.5 ${topBarColor}`} />
+                <div className={`absolute top-0 left-0 w-full h-1.5 ${statusConfig.topBarColor}`} />
 
                 <div className="p-6 flex-1 flex flex-col">
 
@@ -34,12 +73,18 @@ const SiteCard = ({ site, onDelete }) => {
                     <div className="flex justify-between items-start mb-5">
                         <div className="flex-1 min-w-0 pr-4">
 
-                            {/* Status Badge - FIXED WIDTH (w-24) to prevent jumping */}
+                            {/* Status Badge */}
                             <div className="flex items-center gap-2 mb-2">
-                                <div className={`flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full w-28 ${statusColor}`}>
-                                    {isUp ? <CheckCircle size={14} /> : isDown ? <XCircle size={14} /> : <Clock size={14} />}
+                                {/* FIX APPLIED HERE:
+                                    1. Removed 'w-28' (fixed width)
+                                    2. Added 'min-w-28' (minimum width to keep small badges consistent)
+                                    3. Added 'w-fit' (allows growth for long text)
+                                    4. Added 'whitespace-nowrap' (forces single line)
+                                */}
+                                <div className={`flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full min-w-28 w-fit whitespace-nowrap ${statusConfig.textColor} ${statusConfig.bgColor}`}>
+                                    {statusConfig.icon}
                                     <span className="text-[11px] font-bold uppercase tracking-wider">
-                                        {site.status || 'PENDING'}
+                                        {statusConfig.label}
                                     </span>
                                 </div>
                             </div>
@@ -63,7 +108,7 @@ const SiteCard = ({ site, onDelete }) => {
                         </button>
                     </div>
 
-                    {/* Metrics Grid - Pushed to bottom with mt-auto if needed */}
+                    {/* Metrics Grid */}
                     <div className="space-y-3 mt-auto">
 
                         {/* Response Time */}
@@ -83,12 +128,11 @@ const SiteCard = ({ site, onDelete }) => {
                                 <ShieldCheck size={16} />
                                 <span>SSL Valid</span>
                             </div>
-                            <span className={`text-sm font-medium ${site.sslInfo?.valid ? 'text-green-600' : 'text-amber-500'}`}>
+                            <span className={`text-sm font-medium ${isSSLWarning ? 'text-amber-600 font-bold' : isHealthy ? 'text-green-600' : 'text-gray-400'}`}>
                                 {site.sslInfo ? `${site.sslInfo.daysRemaining} days` : 'Checking...'}
                             </span>
                         </div>
 
-                        {/* Divider */}
                         <div className="h-px bg-gray-100 my-2"></div>
 
                         {/* IP Info */}
@@ -112,7 +156,7 @@ const SiteCard = ({ site, onDelete }) => {
                 </div>
             </div>
 
-            {/* --- DELETE MODAL (Same as before) --- */}
+            {/* --- DELETE MODAL --- */}
             {showDeleteModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200">
