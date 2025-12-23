@@ -138,7 +138,7 @@ const Dashboard = () => {
             if (filter === 'ALL') return true;
             if (filter === 'UP') return site.status === 'UP';
             if (filter === 'DOWN') return site.status === 'DOWN';
-            if (filter === 'SSL_EXP') return site.sslInfo && (!site.sslInfo.valid || site.sslInfo.daysRemaining < 30);
+            if (filter === 'SSL_EXP') return site.sslInfo && (!site.sslInfo.valid || site.sslInfo.daysRemaining <= 30);
             return true;
         });
     };

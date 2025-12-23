@@ -10,7 +10,7 @@ const Header = ({ children, searchQuery, setSearchQuery, showSearch = false, sit
     const expiringSites = sites.filter(site =>
         site.sslInfo &&
         site.sslInfo.valid &&
-        site.sslInfo.daysRemaining <= 7
+        site.sslInfo.daysRemaining <= 30
     );
 
     useEffect(() => {

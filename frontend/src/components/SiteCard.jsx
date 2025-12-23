@@ -8,7 +8,7 @@ const SiteCard = ({ site, onDelete }) => {
     const isDown = site.status === 'DOWN';
     const isPending = site.status === 'PENDING' || !site.status;
     const isSSLWarning = !isDown && !isPending && site.sslInfo && (
-        !site.sslInfo.valid || site.sslInfo.daysRemaining <= 7
+        !site.sslInfo.valid || site.sslInfo.daysRemaining <= 30
     );
 
     const isHealthy = !isDown && !isPending && !isSSLWarning;
