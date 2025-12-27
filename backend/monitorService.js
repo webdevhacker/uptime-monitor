@@ -127,15 +127,24 @@ exports.checkAllSites = async () => {
                 }
 
                 site.status = 'UP';
+                site.downSince = null;
                 site.responseTime = duration;
+                isDirty = true;
             } catch (err) {
-                if (site.status === 'UP') {
-                    sendStatusAlert(site, 'DOWN');
+                if (!site.downSince) {
+                    site.downSince = Date.now();
+                    isDirty = true;
+                } else {
+                    const timeDiff = Date.now() - new Date(site.downSince).getTime();
+                    const minutesDown = timeDiff / 1000 / 60;
+                    if (minutesDown >= 5 && site.status !== 'DOWN') {
+                        site.status = 'DOWN';
+                        sendStatusAlert(site, 'DOWN');
+                        isDirty = true;
+                    }
                 }
-                site.status = 'DOWN';
             }
             site.lastChecked = Date.now();
-            isDirty = true;
 
             // --- B. SSL & INFO CHECK (Only if site is UP to save time) ---
             if (site.status === 'UP') {

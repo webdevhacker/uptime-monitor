@@ -4,6 +4,7 @@ const SiteSchema = new mongoose.Schema({
     url: { type: String, required: true },
     status: { type: String, default: 'PENDING' },
     responseTime: { type: Number, default: 0 },
+    downSince: { type: Date, default: null },
     sslInfo: {
         valid: Boolean,
         daysRemaining: Number,
