@@ -84,10 +84,20 @@ const Dashboard = () => {
         setNewUrl(val);
     };
 
+    const DOMAIN_REGEX = /^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$/;
+
     const addSite = async (e) => {
         e.preventDefault();
         const cleanUrl = newUrl.trim();
         if (!cleanUrl) return;
+        if (!DOMAIN_REGEX.test(cleanUrl)) {
+            showToast('warning', 'Invalid URL Format', (
+                <span>
+                    Please enter a valid domain name like <strong className="font-mono">example.com</strong> or <strong className="font-mono">api.example.com</strong>.
+                </span>
+            ));
+            return;
+        }
         setLoading(true);
 
         try {
